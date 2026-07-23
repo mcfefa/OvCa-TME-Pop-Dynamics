@@ -1,0 +1,73 @@
+function result = run_coculture_constant_simulation_new(Ce, S0, R0, F0)
+%parameters from fitting all data to most sensitive parameters 4
+
+%parameters from finalized model 
+rS = 0.7719;
+K = 1112765.1958;
+alphaS = 0.0911;
+nS = 3.7779;
+IC50S = 0.9960177;
+
+rR = 0.6319;
+alphaR = 1.7982;
+nR = 2.5166;
+IC50R = 8.338535;
+
+%parameters from fitting the fibroblast data
+rF = 0.7817;
+KF = 109300.8263;
+
+%interactions with fibroblasts
+betaS = 0.5688;
+betaR = 0.0076;
+    
+    % Time span
+    tspan = 0:0.2:25;
+
+    % Initial conditions
+    y0 = [S0; R0; F0];
+
+    % ODE function handle
+    odefun = @(t,y) coculture_ode_sens2_m13( ...
+        t, y, rS, K, alphaS, nS, IC50S, rR, alphaR, nR, IC50R, Ce, betaS, betaR, rF, KF);
+
+    % Solve
+    [t, y] = ode15s(odefun, tspan, y0);
+
+    % Extract populations
+    S = y(:,1);
+    R = y(:,2);
+    F = y(:,3);
+    T = S + R;
+
+    % Save results to table
+    result = table(t, S, R, F, T, ...
+        'VariableNames', {'time', 'S', 'R', 'F', 'T'});
+
+    % Create output folder if needed
+    if ~exist('output', 'dir')
+        mkdir('output');
+    end
+
+    % Save CSV
+    csvname = sprintf('output/coculture_new_Ce_%g_S0_%g_R0_%g_F0_%g.csv', Ce, S0, R0, F0);
+    writetable(result, csvname);
+
+    % Plot
+    fig = figure('Color','w','Position',[100 100 900 600]);
+    plot(t, S, 'r', 'LineWidth', 2); hold on;
+    plot(t, R, 'g', 'LineWidth', 2);
+    plot(t, F, 'm', 'LineWidth', 2);
+    plot(t, T, 'b', 'LineWidth', 2);
+    xlabel('Time');
+    ylabel('Cells');
+    legend('Sensitive (S)', 'Resistant (R)', 'Fibroblast (F)', 'Total (T)', 'Location', 'best');
+    title(sprintf('Co-culture dynamics: Ce = %g, S0 = %g, R0 = %g, F0 = %g', Ce, S0, R0, F0));
+    grid on;
+
+    % Save figure
+    pngname = sprintf('output/coculture_new_Ce_%g_S0_%g_R0_%g_F0_%g.png', Ce, S0, R0, F0);
+    exportgraphics(fig, pngname, 'Resolution', 300);
+end
+
+%to run this function do this result = run_coculture_constant_simulation_new(1,15000,15000, 10000)
